@@ -1,14 +1,17 @@
 // Generador de Archivos FAT16
-#define usint unsigned short int
 #define rechcast reinterpret_cast<const char *> 
 #include <iostream>
 #include <fstream>
 using namespace std;
 
 int main(int argc, char* argv[]){
-    cout << "Input filename: ";
     string fn;
-    cin >> fn;
+    if(argc>1){
+        fn = argv[1];
+    }else{
+        cout << "Input filename: ";
+        cin >> fn;
+    }
     fn = fn + ".FAT";
     cout << "Filename: " << fn << endl;
     ofstream FATfile(fn.c_str(), ios::binary | ios::out);
@@ -17,8 +20,8 @@ int main(int argc, char* argv[]){
         return 1;
     }
     cout << "Writing Reserved Region... (512 Bytes)" << endl;
-    char* buffer = new char[448];
-    for(int i = 0; i < 448;i++)
+    char* buffer = new char[512];
+    for(int i = 0; i < 512;i++)
         buffer[i] = 0;
     /* BOOT START BLOCK */ 
     FATfile.write(buffer,3); // Bootstrap Jump Code, Unused here
@@ -56,6 +59,27 @@ int main(int argc, char* argv[]){
     values = 0xAA55;
     FATfile.write(rechcast(&values),2); // Boot Sector Signature
     cout << "Done writing Reserved Region." << endl;
+    /* FAT REGION */
+    cout << "Writing FAT Region..." << endl;
+    for(int i=0; i<2; i++){//2 FAT Total
+        cout << "Writing file allocation table #" << i << endl;
+        for(int j=0; j<256; j++){//256 Sectors per FAT
+            FATfile.write(buffer,512);//512 Bytes per Sector
+        }
+    }
+    cout << "Done writing FAT Region." << endl;
+    /* DATA REGION */
+    cout << "Writing Data Region..." << endl;
+    // 256MB = 524288 Sectors in Disk --> 524288 Total Sectors - 512 FAT Sectors - 1 Root Sector = 523775 Data Sectors
+    for(int i=0; i<523775; i++){
+        FATfile.write(buffer,512);
+        if(i%50000==0){
+            cout << i << "/523775 sectors written..." << endl;
+        }
+    }
+    cout << "523775/523775 sectors written..." << endl;
+    cout << "Done writing Data Region." << endl;
+    cout << "Finished generating FAT file!" << endl;
     delete[] buffer;
     FATfile.close();
     return 0;
