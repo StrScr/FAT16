@@ -20,7 +20,7 @@ int main(int argc, char* argv[]){
         return 1;
     }
     cout << "Writing Reserved Region... (512 Bytes)" << endl;
-    char* buffer = new char[512];
+    char* buffer = new char[512]; // Empty sector
     for(int i = 0; i < 512;i++)
         buffer[i] = 0;
     /* BOOT START BLOCK */ 
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
     FATfile.write("MyFS PWN",8); // OEM Name, 8 char, Doesn't really matter
     /* BIOS PARAMETER BLOCK */
     int values = 512;
-    FATfile.write(rechcast(&values),2); //Bytes Per Sector
+    FATfile.write(rechcast(&values),2); // Bytes Per Sector
     values = 8;
     FATfile.write(rechcast(&values),1); // Sectors Per Cluster, 8 Sectors * 512 Bytes/Sector = 4kB Clusters
     values = 1;
@@ -61,10 +61,16 @@ int main(int argc, char* argv[]){
     cout << "Done writing Reserved Region." << endl;
     /* FAT REGION */
     cout << "Writing FAT Region..." << endl;
-    for(int i=0; i<2; i++){//2 FAT Total
+    for(int i=0; i<2; i++){// 2 FAT Total
         cout << "Writing file allocation table #" << i << endl;
-        for(int j=0; j<256; j++){//256 Sectors per FAT
-            FATfile.write(buffer,512);//512 Bytes per Sector
+        // First two FAT entries are special purpose. NOT empty.
+        values = 0xFFF8; // 1st is 0xFFXX, where XX is Media Descriptor
+        FATfile.write(rechcast(&values),2);
+        values = 0xFFFF; // 2nd is EOF
+        FATfile.write(rechcast(&values),2);
+        FATfile.write(buffer,510); //Rest of sector remains empty.
+        for(int j=0; j<255; j++){ // Other 255 Sectors of FAT
+            FATfile.write(buffer,512); // 512 Bytes per Sector
         }
     }
     cout << "Done writing FAT Region." << endl;
