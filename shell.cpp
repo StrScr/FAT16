@@ -1,5 +1,6 @@
 #define usint unsigned short int
 #define uncast reinterpret_cast<unsigned short int>
+#define recast reinterpret_cast<char *>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -39,9 +40,12 @@ int main(int argc, char* argv[]){
     cout << "OS NAME: " << OS_name << endl;
     delete[] OS_name;
     /* Check FS Initalized status */
+    cout << "Checking FS status..." << endl;
     if (getFATindex(2)==0){
         cout << "FAT still uninitalized. Writing root..." << endl;
     }else{
+        cout << getFATindex(0) << endl;
+        cout << getFATindex(1) << endl;
         cout << "Root value: " << getFATindex(2) << endl;
     }
     //Welcome to the shell
@@ -65,10 +69,13 @@ int main(int argc, char* argv[]){
 }
 
 usint getFATindex(int index){
+    cout << "wtf";
     FAT.seekg(FAT.beg+FAToffset+(index*2));
-    char* value = new char[2];
-    FAT.read(value,2);
-    return uncast(value);
+    usint value;
+    cout << "pls";
+    FAT.read(recast(value),2);
+    cout << " wrk :(" << endl;
+    return value;
 }
 
 //Only works with one char delimiter but it works!!
