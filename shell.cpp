@@ -37,20 +37,6 @@ int main(int argc, char* argv[]){
     FAT.seekg(FAT.beg+3);
     FAT.read(OS_name,8);
     cout << "OS NAME: " << OS_name << endl;
-    //Welcome to the shell
-    int status = 0;
-	while(!status) {
-		cout << OS_name << "> ";
-		string line;
-		getline(cin,line);
-        
-		vector<string> tokens = getTokens(line, ' ');
-        if(tokens.size() > 0)
-            cout << "cmd to execute: " << tokens[0] << endl;
-        if(tokens.size() == 0 || tokens[0] == "exit")
-            status = 1;
-		//status = executeCommand(tokens);
-	};
     delete[] OS_name;
     /* Check FS Initalized status */
     if (getFATindex(2)==0){
