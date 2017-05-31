@@ -48,7 +48,7 @@ int currentIndex=2;
 
 int main(int argc, char* argv[]){
     if(argc > 1){
-        FAT.open(argv[1], ios::binary | ios::in);
+        FAT.open(argv[1], ios::out | ios::in);
     }else{
         cout << "Please include filename in args" << endl;
         return 0;
@@ -75,8 +75,8 @@ int main(int argc, char* argv[]){
         root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
         root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
         setDataCluster(2,packDirEntries(root));
-        cout << "setDataCluster" << endl;
         setFATindex(2,FAT_EOF);
+        FAT.flush();
         cout << "Root written." << endl;
     }
     //Welcome to the shell
@@ -86,8 +86,6 @@ int main(int argc, char* argv[]){
 		string line;
 		getline(cin,line);
 		vector<string> tokens = getTokens(line, ' ');
-        if(tokens.size() > 0)
-            cout << "cmd to execute: " << tokens[0] << endl;
         if(tokens.size() == 0 || tokens[0] == "exit"){
             status = 1;
         }else if(tokens[0]=="ls"){
@@ -139,7 +137,6 @@ char* getDataCluster(int index){
 
 void setDataCluster(int index, char* data){
     FAT.seekg(FAT.beg+DATA_OFFSET+(index*CLUSTER_SIZE));
-    cout << "Write success" << endl;
     FAT.write(data,CLUSTER_SIZE);
 }
 
