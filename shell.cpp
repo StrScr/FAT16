@@ -43,7 +43,8 @@ const char ATTR_DIRECTORY = 0x10;
 const char ATTR_FILE = 0x20;
 
 fstream FAT;
-string CURR_DIR;
+string currentDir="/";
+int currentIndex=2;
 
 int main(int argc, char* argv[]){
     if(argc > 1){
@@ -85,9 +86,26 @@ int main(int argc, char* argv[]){
 		vector<string> tokens = getTokens(line, ' ');
         if(tokens.size() > 0)
             cout << "cmd to execute: " << tokens[0] << endl;
-        if(tokens.size() == 0 || tokens[0] == "exit")
+        if(tokens.size() == 0 || tokens[0] == "exit"){
             status = 1;
-		//status = executeCommand(tokens);
+        }else if(tokens[0]=="ls"){
+            DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+            cout << "Filename   |Type |Date      |Size" << endl;
+            cout << "=======================================" << endl;
+            for(int i=0; i<512; i++){
+                if(myDir[i].filename[0]!='\0'){//Check if valid DirEntry
+                    cout << myDir[i].filename << " ";
+                    if(myDir[i].attributes & ATTR_DIRECTORY){
+                        cout << "DIR  ";
+                    }else{
+                        cout << "FILE ";
+                    }
+                    cout << myDir[i].created_time; //UNFORMATTED!!!
+                    cout << myDir[i].filesize << "B" << endl;
+                }
+            }
+        }
+        //status = executeCommand(tokens);
 	};
     if(status != 1){
 		cerr << "ERROR " << status << ": al ejecutar el comando" << endl;
@@ -186,9 +204,6 @@ char* packDirEntries(DirEntry* entries){
 
 /**
     Only works with one char delimiter but it works!!
-
-    @param entries Array of 512 DirEntries to pack.
-    @return The 4kB cluster as a char array.
 */
 vector<string> getTokens(string toTokenize, char delimiter){
 	vector<string> v;
