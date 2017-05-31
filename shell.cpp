@@ -147,7 +147,12 @@ int main(int argc, char* argv[]){
                             int ind = getNextAvailableIndex();
                             myDir[avail]=makeDirEntry(tokens[1].c_str(),ATTR_DIRECTORY,ind,4096);
                             setFATindex(ind,FAT_EOF);
-                            setDataCluster(2,packDirEntries(myDir));
+                            setDataCluster(currentIndex,packDirEntries(myDir));
+                            //Initialize directory (Create . and .. DirEntries)
+                            myDir = parseDirEntries(getDataCluster(ind));
+                            myDir[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,ind,4096);
+                            myDir[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,currentIndex,4096);
+                            setDataCluster(ind,packDirEntries(myDir));
                             cout << "Directory created." << endl;
                         }else{
                             cout << "mkdir: No more space available for entries in current directory!" << endl;
@@ -156,6 +161,34 @@ int main(int argc, char* argv[]){
                 }
             }else{
                 cout << "mkdir: Need to specify directory name!" << endl;
+            }
+        }else if(tokens[0]=="cd"){
+            if(tokens.size()>1){
+                if(tokens[1].length()>11 || tokens[1].length()<1){
+                    cout << "cd: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+                }else{
+                    //Find element in directory with same name
+                    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                    bool found=false;
+                    for(int i=0; i<128; i++){//Check if name already exists in DirEntries
+                        if(filenameToString(myDir[i].filename)==tokens[1]){
+                            found=true;
+                            //Check if DirEntry is Directory
+                            if(myDir[i].attributes & ATTR_DIRECTORY){
+                                currentIndex = myDir[i].address;
+                                cout << "Changed current directory to '" << tokens[1] << "'." << endl;
+                            }else{
+                                cout << "'" << tokens[1] << "' is not a directory!" << endl;
+                            }
+                            break;
+                        }
+                    }
+                    if(!found){
+                        cout << "cd: Directory '" << tokens[1] << "' not found!" << endl;
+                    }
+                }
+            }else{
+                cout << "cd: Need to specify directory name!" << endl;
             }
         }
         //status = executeCommand(tokens);
