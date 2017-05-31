@@ -29,6 +29,7 @@ char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
 int getNextAvailableIndex();
+string filenameToString(char*);
 vector<string> getTokens(string, char);
 
 const int FAT_OFFSET = 512; // 1 sector
@@ -116,7 +117,7 @@ int main(int argc, char* argv[]){
                     int mys = strftime(mytime, 24, "%b %d, %Y; %H:%M:%S", localtime(&(myDir[i].created_time)));
                     cout << mytime;
                     cout << " |";
-                    cout << myDir[i].filesize << "B" << endl;
+                    cout << myDir[i].filesize << endl;
                 }
             }
         }else if(tokens[0]=="mkdir"){
@@ -127,8 +128,7 @@ int main(int argc, char* argv[]){
                     bool cont=true;
                     DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
                     for(int i=0; i<128; i++){//Check if name already exists in DirEntries
-                        // BROKEN. ALLOWS REPEATS
-                        if(myDir[i].filename == tokens[1].c_str()){
+                        if(filenameToString(myDir[i].filename)==tokens[1]){
                             cout << "mkdir: Element with same name exists in directory!" << endl;
                             cont=false;
                             break;
@@ -264,6 +264,15 @@ int getNextAvailableIndex(){
     }while(available!=0);
     index--;
     return index;
+}
+
+string filenameToString(char* filename){
+    char longer[12];
+    longer[11]='\0';
+    for(int i=0; i<11; i++){
+        longer[i]=filename[i];
+    }
+    return string(longer);
 }
 
 /**
