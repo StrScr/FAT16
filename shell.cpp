@@ -290,21 +290,34 @@ int main(int argc, char* argv[]){
     }else if (tokens[0]=="rmdir") {
       if(tokens.size()>1){
         if(tokens[1].length()>11 || tokens[1].length()<1){
-          cout << "rmdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+            cout << "rmdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
         }else{
-          bool cont=true;
-          DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
-          for(int i=0; i<128; i++){//Check if name exists in DirEntries
-            if(filenameToString(myDir[i].filename)==tokens[1]){
-
-              deleteEntry(myDir);
-
-              cout << "El directorio fue eliminado exitosamente"<< endl;
+            if(tokens[1]=="." || tokens[1]==".."){
+                cout << "rmdir: Can't delete special directory!" << endl;
             }else{
-              cout <<"rmdir:Element doesn't exist in Directory"<<endl;
+                int found=-1;
+                bool isdir=true;
+                DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                for(int i=0; i<128; i++){//Check if name exists in DirEntries
+                    if(filenameToString(myDir[i].filename)==tokens[1]){
+                        if(myDir[i].attributes & ATTR_DIRECTORY){
+                            found=i;
+                        }else{
+                            cout << "rmdir: '" << tokens[1] << "' isn't a directory!" << endl;
+                            isdir=false;
+                        }
+                        break;
+                    }
+                }
+                if(found>=0){
+                    deleteEntry(myDir[found]);
+                    myDir[found].filename[0]='\0';
+                    setDataCluster(currentIndex, packDirEntries(myDir));
+                    cout << "Directory removed." << endl;
+                }else if(isdir){
+                    cout << "rmdir: Element doesn't exist in current directory." << endl;
+                }
             }
-          }
-
         }
       }else{
         cout << "rmdir: Need to specify directory name!" << endl;
