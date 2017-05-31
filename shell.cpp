@@ -546,6 +546,7 @@ void createFile(string filename){
   }
 
   setDataCluster(currentIndex,packDirEntries(myDir));
+  cin.clear();
   //remember to setFATindex(currentIndex,nextcluster|FAT_EOF)
   /*Maybe flush to disk?*/
 }
@@ -556,7 +557,7 @@ void readFile(string filename){
     if(myDir[i].attributes & ATTR_FILE && filenameToString(myDir[i].filename) == filename){
       char* buffer = getDataCluster(myDir[i].address);
       int j = 0;
-      while(buffer[j] != 4)
+      while(buffer[j] != 4 && buffer[j] != 0)
         cout << buffer[j++];
       break;
     }
