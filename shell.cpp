@@ -13,7 +13,7 @@ using namespace std;
 struct DirEntry{
     char filename[11];
     char attributes;
-    unsigned long created_time;
+    time_t created_time;
     usint address;
     unsigned int filesize;
     char reserved[6]; 
@@ -28,6 +28,7 @@ DirEntry makeDirEntry(string, char, usint, unsigned int);
 char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
+int getNextAvailableIndex();
 vector<string> getTokens(string, char);
 
 const int FAT_OFFSET = 512; // 1 sector
@@ -72,8 +73,8 @@ int main(int argc, char* argv[]){
     if (getFATindex(2)==0){
         cout << "FAT still uninitalized. Writing root..." << endl;
         DirEntry* root = parseDirEntries(getDataCluster(2));
-        root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
-        root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
+        root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,4096);
+        root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,4096);
         setDataCluster(2,packDirEntries(root));
         setFATindex(2,FAT_EOF);
         FAT.flush();
@@ -90,8 +91,8 @@ int main(int argc, char* argv[]){
             status = 1;
         }else if(tokens[0]=="ls"){
             DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
-            cout << "Filename   |Type |Date      |Size" << endl;
-            cout << "=======================================" << endl;
+            cout << "Filename   |Type |Date                   |Size" << endl;
+            cout << "======================================================" << endl;
             for(int i=0; i<128; i++){
                 if(myDir[i].filename[0]!='\0'){//Check if valid DirEntry
                     int j=0;
@@ -110,9 +111,51 @@ int main(int argc, char* argv[]){
                     }else{
                         cout << "FILE |";
                     }
-                    cout << myDir[i].created_time<<"|"; //UNFORMATTED!!!
+                    //cout << myDir[i].created_time << "|"; //UNFORMATTED!!!
+                    char mytime[24];
+                    int mys = strftime(mytime, 24, "%b %d, %Y; %H:%M:%S", localtime(&(myDir[i].created_time)));
+                    cout << mytime;
+                    cout << " |";
                     cout << myDir[i].filesize << "B" << endl;
                 }
+            }
+        }else if(tokens[0]=="mkdir"){
+            if(tokens.size()>1){
+                if(tokens[1].length()>11 || tokens[1].length()<1){
+                    cout << "mkdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+                }else{
+                    bool cont=true;
+                    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                    for(int i=0; i<128; i++){//Check if name already exists in DirEntries
+                        // BROKEN. ALLOWS REPEATS
+                        if(myDir[i].filename == tokens[1].c_str()){
+                            cout << "mkdir: Element with same name exists in directory!" << endl;
+                            cont=false;
+                            break;
+                        }
+                    }
+                    if(cont){
+                        int avail=0;
+                        for(int i=0; i<128; i++){//Find available DirEntry
+                            if(myDir[i].filename[0]=='\0'){
+                                avail=i;
+                                break;
+                            }
+                        }
+                        if(avail>0){
+                            //get available index in FAT
+                            int ind = getNextAvailableIndex();
+                            myDir[avail]=makeDirEntry(tokens[1].c_str(),ATTR_DIRECTORY,ind,4096);
+                            setFATindex(ind,FAT_EOF);
+                            setDataCluster(2,packDirEntries(myDir));
+                            cout << "Directory created." << endl;
+                        }else{
+                            cout << "mkdir: No more space available for entries in current directory!" << endl;
+                        }
+                    }
+                }
+            }else{
+                cout << "mkdir: Need to specify directory name!" << endl;
             }
         }
         //status = executeCommand(tokens);
@@ -209,6 +252,15 @@ char* packDirEntries(DirEntry* entries){
         }
     }
     return data;
+}
+
+int getNextAvailableIndex(){
+    FAT.seekg(FAT.beg+FAT_OFFSET+6);
+    usint available;
+    do{
+        FAT.read(recast(&available),2);
+    }while(available!=0);
+    return available;
 }
 
 /**
