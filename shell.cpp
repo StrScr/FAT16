@@ -18,7 +18,7 @@ struct DirEntry{
     unsigned int filesize;
     char reserved[6]; 
 };
-
+usint getNextAvailableIndex();
 usint getFATindex(int);
 void setFATindex(int, usint);
 char* getDataCluster(int);
@@ -29,7 +29,8 @@ char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
 vector<string> getTokens(string, char);
-
+//use for cat
+void createFile(string);
 const int FAT_OFFSET = 512; // 1 sector
 const int DATA_OFFSET = FAT_OFFSET + 256*1024; // 1 sector + 256kB
 const int CLUSTER_SIZE = 512*8; // 4kB (8 sectors/cluster at 512B/sector) 
@@ -130,7 +131,24 @@ int main(int argc, char* argv[]){
     FAT.close();
     return 0;
 }
-
+/*
+usint getNextAvailableIndex(){
+    for(int i = 2; i < 512; i++){
+        if(getFATindex(i) == 0)
+            return i;
+    }
+}*/
+usint getNextAvailableIndex(){
+    usint index=3;
+    FAT.seekg(FAT.beg+FAT_OFFSET+index*2);
+    usint available;
+    do{
+        index++;
+        FAT.read(recast(&available),2);
+    }while(available!=0 || index == 0);
+    index--;
+    return index;
+}
 usint getFATindex(int index){
     FAT.seekg(FAT.beg+FAT_OFFSET+(index*2));
     usint value;
@@ -240,10 +258,29 @@ vector<string> getTokens(string toTokenize, char delimiter){
 void createFile(string filename){
     /*Do cat>file logic here*/
     /*string fileData = cin.get()*/
+    
     DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
     for(int i=0; i<128; i++){
         if(myDir[i].filename[0]!='\0'){
-           myDir[i] = makeDirEntry(filename, ATTR_FILE, getFATindex(currentIndex),8);
+            int index = getNextAvailableIndex();
+            myDir[i] = makeDirEntry(filename, ATTR_FILE, index,0);
+            char fileData;
+            char* cluster = getDataCluster(index);
+            usint clusterIndex = 0;
+            bool addNewCluster = false;
+            while(cin.get(fileData)){//end of file
+                if(fileData == 4)
+                    break;
+                /*FAT LOGIC HERE*/
+                if(addNewCluster){
+                    int next_index = getNextAvailableIndex();
+                    setFATindex(index,next_index);
+                    cluster = getDataCluster(next_index);
+                    index = next_index;
+                }
+                cluster[clusterIndex++];
+                addNewCluster = (clusterIndex == 0);
+            }
            break;
         }
     }
