@@ -90,12 +90,20 @@ int main(int argc, char* argv[]){
             status = 1;
         }else if(tokens[0]=="ls"){
             DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
-            cout << "Filename  |Type |Date      |Size" << endl;
+            cout << "Filename   |Type |Date      |Size" << endl;
             cout << "=======================================" << endl;
             for(int i=0; i<128; i++){
                 if(myDir[i].filename[0]!='\0'){//Check if valid DirEntry
-                    for(int j=1; j <= 10; j++)
-                        cout << myDir[i].filename;
+                    int j=0;
+                    for(j=0; j<11; j++){
+                        if(myDir[i].filename[j]=='\0'){
+                            break;
+                        }
+                        cout << myDir[i].filename[j];
+                    }
+                    for(; j<11; j++){
+                        cout << " ";
+                    }
                     cout << "|";
                     if(myDir[i].attributes & ATTR_DIRECTORY){
                         cout << "DIR  |";
