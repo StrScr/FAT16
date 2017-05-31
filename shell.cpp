@@ -30,9 +30,13 @@ char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
 string filenameToString(char*);
+void deleteEntry(DirEntry);
+void clearFATindex(usint);
 vector<string> getTokens(string, char);
 //use for cat
 void createFile(string);
+
+const int FAT_SIZE = 65536; // 65536 entries. 2B per entry.
 const int FAT_OFFSET = 512; // 1 sector
 const int DATA_OFFSET = FAT_OFFSET + 256*1024; // 1 sector + 256kB
 const int CLUSTER_SIZE = 512*8; // 4kB (8 sectors/cluster at 512B/sector) 
@@ -221,6 +225,8 @@ int main(int argc, char* argv[]){
                         if(tokens[2].length()==4){
                             string attr = tokens[2];
                             char nattr=0;
+                            attr+=(myDir[found].attributes & ATTR_FILE);
+                            attr+=(myDir[found].attributes & ATTR_DIRECTORY);
                             if(attr[0]=='V'){
                                 nattr+=ATTR_VOLUMELABEL;
                             }else if(attr[0]=='-'){
@@ -292,24 +298,13 @@ int main(int argc, char* argv[]){
 }
 
 usint getNextAvailableIndex(){
-    for(int i = 2; i < 512; i++){
+    for(int i = 2; i < 65536; i++){
         if(getFATindex(i) == 0){
             return i;
         }
     }
 }
 
-usint getNextAvailableDATAIndex(){
-    usint index=3;
-    FAT.seekg(FAT.beg+FAT_OFFSET+index*2);
-    usint available;
-    do{
-        index++;
-        FAT.read(recast(&available),2);
-    }while(available!=0 || index == 0);
-    index--;
-    return index;
-}
 usint getFATindex(int index){
     FAT.seekg(FAT.beg+FAT_OFFSET+(index*2));
     usint value;
@@ -471,4 +466,33 @@ void createFile(string filename){
     setDataCluster(currentIndex,packDirEntries(myDir));
     //remember to setFATindex(currentIndex,nextcluster|FAT_EOF)
     /*Maybe flush to disk?*/
+}
+
+void deleteEntry(DirEntry entry){
+    if(entry.attributes & ATTR_FILE){
+        //Just a file.
+        clearFATindex(entry.address);
+    }else{
+        if(filenameToString(entry.filename)=="." || filenameToString(entry.filename)==".."){
+            //Special Directory. Don't do anything.
+        }else{
+            //Directory. Must recurse.
+            DirEntry* myDir = parseDirEntries(getDataCluster(entry.address));
+            for(int i=0; i<128; i++){
+                if(myDir[i].filename[0]!='\0'){
+                    deleteEntry(myDir[i]);
+                    myDir[i].filename[0]='\0';
+                }
+            }
+            setDataCluster(entry.address,packDirEntries(myDir));
+            clearFATindex(entry.address);
+        }
+    }
+}
+
+void clearFATindex(usint index){
+    if(hasNextCluster(index)){
+        clearFATindex(getFATindex(index);)
+    }
+    setFATindex(index, 0x0000);
 }
