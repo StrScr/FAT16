@@ -18,6 +18,7 @@ struct DirEntry{
     unsigned int filesize;
     char reserved[6]; 
 };
+usint getNextAvailableDATAIndex();
 usint getNextAvailableIndex();
 usint getFATindex(int);
 void setFATindex(int, usint);
@@ -131,14 +132,16 @@ int main(int argc, char* argv[]){
     FAT.close();
     return 0;
 }
-/*
+
 usint getNextAvailableIndex(){
     for(int i = 2; i < 512; i++){
-        if(getFATindex(i) == 0)
+        if(getFATindex(i) == 0){
             return i;
+        }
     }
-}*/
-usint getNextAvailableIndex(){
+}
+
+usint getNextAvailableDATAIndex(){
     usint index=3;
     FAT.seekg(FAT.beg+FAT_OFFSET+index*2);
     usint available;
@@ -171,6 +174,7 @@ char* getDataCluster(int index){
 void setDataCluster(int index, char* data){
     FAT.seekg(FAT.beg+DATA_OFFSET+(index*CLUSTER_SIZE));
     FAT.write(data,CLUSTER_SIZE);
+    FAT.flush();
 }
 
 bool hasNextCluster(int index){
@@ -261,7 +265,7 @@ void createFile(string filename){
     
     DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
     for(int i=0; i<128; i++){
-        if(myDir[i].filename[0]!='\0'){
+        if(myDir[i].filename[0] == '\0'){
             int index = getNextAvailableIndex();
             myDir[i] = makeDirEntry(filename, ATTR_FILE, index,0);
             char fileData;
@@ -269,19 +273,32 @@ void createFile(string filename){
             usint clusterIndex = 0;
             bool addNewCluster = false;
             while(cin.get(fileData)){//end of file
-                if(fileData == 4)
-                    break;
                 /*FAT LOGIC HERE*/
                 if(addNewCluster){
+                    myDir[i].filesize+=CLUSTER_SIZE;
                     int next_index = getNextAvailableIndex();
+                    
+                    //Saving cluster and fat
+                    setDataCluster(index,cluster);
                     setFATindex(index,next_index);
+
+                    //Now the new cluster and index
                     cluster = getDataCluster(next_index);
                     index = next_index;
                 }
-                cluster[clusterIndex++];
+                if(fileData == 4){
+                    cluster[clusterIndex] = fileData;
+                    break;
+                }
+                cluster[clusterIndex++] = fileData;
                 addNewCluster = (clusterIndex == 0);
             }
-           break;
+            //save cluster to data
+            setDataCluster(index,cluster);
+            //save fat
+            setFATindex(index,FAT_EOF);
+            myDir[i].filesize+=clusterIndex;            
+            break;
         }
     }
     setDataCluster(currentIndex,packDirEntries(myDir));
