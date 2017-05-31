@@ -255,12 +255,15 @@ char* packDirEntries(DirEntry* entries){
 }
 
 int getNextAvailableIndex(){
-    FAT.seekg(FAT.beg+FAT_OFFSET+6);
+    int index=3;
+    FAT.seekg(FAT.beg+FAT_OFFSET+index*2);
     usint available;
     do{
+        index++;
         FAT.read(recast(&available),2);
     }while(available!=0);
-    return available;
+    index--;
+    return index;
 }
 
 /**
