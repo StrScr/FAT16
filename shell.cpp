@@ -194,6 +194,13 @@ int main(int argc, char* argv[]){
               //Check if DirEntry is Directory
               if(myDir[i].attributes & ATTR_DIRECTORY){
                 currentIndex = myDir[i].address;
+                  if(tokens[1]==".."){
+                    cout << tokens[1] << endl;
+                    currentDir=currentDir.erase(currentDir.rfind('/'));
+
+                  }else if(tokens[1]!="."){
+                      currentDir+="/"+filenameToString(myDir[i].filename);
+                  }
                 cout << "Changed current directory to '" << tokens[1] << "'." << endl;
               }else{
                 cout << "'" << tokens[1] << "' is not a directory!" << endl;
@@ -537,7 +544,7 @@ void createFile(string filename){
       break;
     }
   }
-  
+
   setDataCluster(currentIndex,packDirEntries(myDir));
   //remember to setFATindex(currentIndex,nextcluster|FAT_EOF)
   /*Maybe flush to disk?*/
@@ -553,7 +560,7 @@ void readFile(string filename){
         cout << buffer[j++];
       break;
     }
-  }  
+  }
 }
 
 bool isElementRepeated(string filename){
