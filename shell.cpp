@@ -34,6 +34,13 @@ const int FAT_OFFSET = 512; // 1 sector
 const int DATA_OFFSET = FAT_OFFSET + 256*1024; // 1 sector + 256kB
 const int CLUSTER_SIZE = 512*8; // 4kB (8 sectors/cluster at 512B/sector) 
 const usint FAT_EOF = 0xFFFF;
+// DirEntry Attribute Constants 
+const char ATTR_READONLY = 0x01;
+const char ATTR_HIDDEN = 0x02;
+const char ATTR_SYSTEMFILE = 0x04;
+const char ATTR_VOLUMELABEL = 0x08;
+const char ATTR_DIRECTORY = 0x10;
+const char ATTR_FILE = 0x20;
 
 fstream FAT;
 string CURR_DIR;
@@ -63,8 +70,8 @@ int main(int argc, char* argv[]){
     if (getFATindex(2)==0){
         cout << "FAT still uninitalized. Writing root..." << endl;
         DirEntry* root = parseDirEntries(getDataCluster(2));
-        root[0]=makeDirEntry(".",0x10,2,0);
-        root[1]=makeDirEntry("..",0x10,2,0);
+        root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
+        root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
         setDataCluster(2,packDirEntries(root));
         setFATindex(2,FAT_EOF);
         cout << "Root written." << endl;
