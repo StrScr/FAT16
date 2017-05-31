@@ -68,7 +68,7 @@ int main(int argc, char* argv[]){
         FATfile.write(rechcast(&values),2);
         values = 0xFFFF; // 2nd is EOF
         FATfile.write(rechcast(&values),2);
-        FATfile.write(buffer,510); //Rest of sector remains empty.
+        FATfile.write(buffer,508); //Rest of sector remains empty.
         for(int j=0; j<255; j++){ // Other 255 Sectors of FAT
             FATfile.write(buffer,512); // 512 Bytes per Sector
         }
