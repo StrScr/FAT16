@@ -6,7 +6,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <sys/time.h>
+#include <ctime>
 
 using namespace std;
 
@@ -24,7 +24,7 @@ void setFATindex(int, usint);
 char* getDataCluster(int);
 void setDataCluster(int,char*);
 bool hasNextCluster(int);
-DirEntry makeDirEntry(char*,char,usint,unsigned int);
+DirEntry makeDirEntry(string, char, usint, unsigned int);
 char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
@@ -59,9 +59,10 @@ int main(int argc, char* argv[]){
     }
     cout << "File opened succesfully." << endl;
     cout << "READING BOOT SECTOR" << endl;
-    char* OS_name = new char[8];
+    char OS_name[9];
     FAT.seekg(FAT.beg+3);
     FAT.read(OS_name,8);
+    OS_name[8] = '\0';
     cout << "OS NAME: " << OS_name << endl;
     /* Check FS Initalized status */
     cout << "Checking FS status..." << endl;
@@ -74,6 +75,7 @@ int main(int argc, char* argv[]){
         root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
         root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
         setDataCluster(2,packDirEntries(root));
+        cout << "setDataCluster" << endl;
         setFATindex(2,FAT_EOF);
         cout << "Root written." << endl;
     }
@@ -90,17 +92,19 @@ int main(int argc, char* argv[]){
             status = 1;
         }else if(tokens[0]=="ls"){
             DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
-            cout << "Filename   |Type |Date      |Size" << endl;
+            cout << "Filename  |Type |Date      |Size" << endl;
             cout << "=======================================" << endl;
-            for(int i=0; i<512; i++){
+            for(int i=0; i<128; i++){
                 if(myDir[i].filename[0]!='\0'){//Check if valid DirEntry
-                    cout << myDir[i].filename << " ";
+                    for(int j=1; j <= 10; j++)
+                        cout << myDir[i].filename;
+                    cout << "|";
                     if(myDir[i].attributes & ATTR_DIRECTORY){
-                        cout << "DIR  ";
+                        cout << "DIR  |";
                     }else{
-                        cout << "FILE ";
+                        cout << "FILE |";
                     }
-                    cout << myDir[i].created_time; //UNFORMATTED!!!
+                    cout << myDir[i].created_time<<"|"; //UNFORMATTED!!!
                     cout << myDir[i].filesize << "B" << endl;
                 }
             }
@@ -110,7 +114,6 @@ int main(int argc, char* argv[]){
     if(status != 1){
 		cerr << "ERROR " << status << ": al ejecutar el comando" << endl;
 	}
-    delete[] OS_name;
     FAT.close();
     return 0;
 }
@@ -136,6 +139,7 @@ char* getDataCluster(int index){
 
 void setDataCluster(int index, char* data){
     FAT.seekg(FAT.beg+DATA_OFFSET+(index*CLUSTER_SIZE));
+    cout << "Write success" << endl;
     FAT.write(data,CLUSTER_SIZE);
 }
 
@@ -143,7 +147,7 @@ bool hasNextCluster(int index){
     return getFATindex(index)!=FAT_EOF; 
 }
 
-DirEntry makeDirEntry(char* fn, char attr, usint addr, unsigned int size){
+DirEntry makeDirEntry(string fn, char attr, usint addr, unsigned int size){
     DirEntry entry;
     //entry.filename=fn;
     for(int i=0; i<11; i++){
@@ -153,9 +157,9 @@ DirEntry makeDirEntry(char* fn, char attr, usint addr, unsigned int size){
         }
     }
     entry.attributes=attr;
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    entry.created_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    time_t now;
+    time(&now);
+    entry.created_time = now;
     //entry.created_time=std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
     entry.address=addr;
     entry.filesize=size;
@@ -171,30 +175,30 @@ char* getDirRawData(int index, char* data){
 }
 
 /**
-    Transforms a 4kB cluster of data into 512 DirEntries.
+    Transforms a 4kB cluster of data into 128 DirEntries.
 
     @param data The 4kB cluster as a char array.
-    @return The array of 512 DirEntries.
+    @return The array of 128 DirEntries.
 */
 DirEntry* parseDirEntries(char* data){
-    DirEntry* entries = new DirEntry[512];
-    for(int i=0; i<512; i++){
+    DirEntry* entries = new DirEntry[128];
+    for(int i=0; i<128; i++){
         entries[i] = *(reinterpret_cast<DirEntry*>(getDirRawData(i,data)));
     }
     return entries;
 }
 
 /**
-    The reverse of parseDirEntries. It packs 512 DirEntries into a 4kB cluster.
+    The reverse of parseDirEntries. It packs 128 DirEntries into a 4kB cluster.
 
-    @param entries Array of 512 DirEntries to pack.
+    @param entries Array of 128 DirEntries to pack.
     @return The 4kB cluster as a char array.
 */
 char* packDirEntries(DirEntry* entries){
     char* data = new char[CLUSTER_SIZE];
     char* entry;
-    for(int i=0; i<512; i++){
-        entry=recast(&(entries[i]));
+    for(int i=0; i<128; i++){
+        entry=recast(&entries[i]);
         for(int j=0; j<32; j++){
             data[i*32+j]=entry[j];
         }
