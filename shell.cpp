@@ -10,13 +10,13 @@
 using namespace std;
 
 struct DirEntry{
-    char[11] filename;
+    char filename[11];
     char attributes;
     unsigned long created_time;
     usint address;
     unsigned int filesize;
-    char[6] reserved; 
-}
+    char reserved[6]; 
+};
 
 usint getFATindex(int);
 void setFATindex(int, usint);
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]){
         root[1]=makeDirEntry("..",0x10,2,0);
         setDataCluster(2,packDirEntries(root));
         setFATindex(2,FAT_EOF);
-        cout << "Root written."
+        cout << "Root written." << endl;
     }
     //Welcome to the shell
     int status = 0;
@@ -121,7 +121,7 @@ DirEntry makeDirEntry(char* fn, char attr, usint addr, unsigned int size){
     DirEntry entry;
     entry.filename=fn;
     entry.attributes=attr;
-    entry.created_time=chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+    entry.created_time=std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
     entry.address=addr;
     entry.filesize=size;
     return entry;
@@ -144,7 +144,7 @@ char* getDirRawData(int index, char* data){
 DirEntry* parseDirEntries(char* data){
     DirEntry* entries = new DirEntry[512];
     for(int i=0; i<512; i++){
-        DirEntry[i] = reinterpret_cast<DirEntry>(getDirRawData(i));
+        entries[i] = reinterpret_cast<DirEntry>(getDirRawData(i,data));
     }
     return entries;
 }
@@ -158,9 +158,9 @@ DirEntry* parseDirEntries(char* data){
 char* packDirEntries(DirEntry* entries){
     char* data = new char[CLUSTER_SIZE];
     char* entry;
-    for(i=0; i<512; i++){
+    for(int i=0; i<512; i++){
         entry=recast(&(entries[i]));
-        for(j=0; j<32; j++){
+        for(int j=0; j<32; j++){
             data[i*32+j]=entry[j];
         }
     }
