@@ -298,7 +298,7 @@ int main(int argc, char* argv[]){
 }
 
 usint getNextAvailableIndex(){
-    for(int i = 2; i < 65536; i++){
+    for(int i = 2; i < FAT_SIZE; i++){
         if(getFATindex(i) == 0){
             return i;
         }
@@ -492,7 +492,7 @@ void deleteEntry(DirEntry entry){
 
 void clearFATindex(usint index){
     if(hasNextCluster(index)){
-        clearFATindex(getFATindex(index);)
+        clearFATindex(getFATindex(index));
     }
     setFATindex(index, 0x0000);
 }
