@@ -13,7 +13,7 @@ using namespace std;
 struct DirEntry{
     char filename[11];
     char attributes;
-    unsigned long created_time;
+    time_t created_time;
     usint address;
     unsigned int filesize;
     char reserved[6]; 
@@ -29,6 +29,7 @@ DirEntry makeDirEntry(string, char, usint, unsigned int);
 char* getDirRawData(int, char*);
 DirEntry* parseDirEntries(char*);
 char* packDirEntries(DirEntry*);
+string filenameToString(char*);
 vector<string> getTokens(string, char);
 //use for cat
 void createFile(string);
@@ -74,8 +75,8 @@ int main(int argc, char* argv[]){
     if (getFATindex(2)==0){
         cout << "FAT still uninitalized. Writing root..." << endl;
         DirEntry* root = parseDirEntries(getDataCluster(2));
-        root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
-        root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,0);
+        root[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,4096);
+        root[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,2,4096);
         setDataCluster(2,packDirEntries(root));
         setFATindex(2,FAT_EOF);
         FAT.flush();
@@ -92,8 +93,8 @@ int main(int argc, char* argv[]){
             status = 1;
         }else if(tokens[0]=="ls"){
             DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
-            cout << "Filename   |Type |Date      |Size" << endl;
-            cout << "=======================================" << endl;
+            cout << "Filename   |Type |Date                   |Size" << endl;
+            cout << "======================================================" << endl;
             for(int i=0; i<128; i++){
                 if(myDir[i].filename[0]!='\0'){//Check if valid DirEntry
                     int j=0;
@@ -112,8 +113,12 @@ int main(int argc, char* argv[]){
                     }else{
                         cout << "FILE |";
                     }
-                    cout << myDir[i].created_time<<"|"; //UNFORMATTED!!!
-                    cout << myDir[i].filesize << "B" << endl;
+                    //cout << myDir[i].created_time << "|"; //UNFORMATTED!!!
+                    char mytime[24];
+                    int mys = strftime(mytime, 24, "%b %d, %Y; %H:%M:%S", localtime(&(myDir[i].created_time)));
+                    cout << mytime;
+                    cout << " |";
+                    cout << myDir[i].filesize << endl;
                 }
             }
         }else if(tokens[0]=="cat"){
@@ -122,6 +127,159 @@ int main(int argc, char* argv[]){
             }
             if(tokens.size() == 3 && tokens[1] == ">"){
                 createFile(tokens[2]);
+            }
+        }else if(tokens[0]=="mkdir"){
+            if(tokens.size()>1){
+                if(tokens[1].length()>11 || tokens[1].length()<1){
+                    cout << "mkdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+                }else{
+                    bool cont=true;
+                    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                    for(int i=0; i<128; i++){//Check if name already exists in DirEntries
+                        if(filenameToString(myDir[i].filename)==tokens[1]){
+                            cout << "mkdir: Element with same name exists in directory!" << endl;
+                            cont=false;
+                            break;
+                        }
+                    }
+                    if(cont){
+                        int avail=0;
+                        for(int i=0; i<128; i++){//Find available DirEntry
+                            if(myDir[i].filename[0]=='\0'){
+                                avail=i;
+                                break;
+                            }
+                        }
+                        if(avail>0){
+                            //get available index in FAT
+                            int ind = getNextAvailableIndex();
+                            myDir[avail]=makeDirEntry(tokens[1].c_str(),ATTR_DIRECTORY,ind,4096);
+                            setFATindex(ind,FAT_EOF);
+                            setDataCluster(currentIndex,packDirEntries(myDir));
+                            //Initialize directory (Create . and .. DirEntries)
+                            myDir = parseDirEntries(getDataCluster(ind));
+                            myDir[0]=makeDirEntry(".",ATTR_DIRECTORY | ATTR_SYSTEMFILE,ind,4096);
+                            myDir[1]=makeDirEntry("..",ATTR_DIRECTORY | ATTR_SYSTEMFILE,currentIndex,4096);
+                            setDataCluster(ind,packDirEntries(myDir));
+                            cout << "Directory created." << endl;
+                        }else{
+                            cout << "mkdir: No more space available for entries in current directory!" << endl;
+                        }
+                    }
+                }
+            }else{
+                cout << "mkdir: Need to specify directory name!" << endl;
+            }
+        }else if(tokens[0]=="cd"){
+            if(tokens.size()>1){
+                if(tokens[1].length()>11 || tokens[1].length()<1){
+                    cout << "cd: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+                }else{
+                    //Find element in directory with same name
+                    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                    bool found=false;
+                    for(int i=0; i<128; i++){//Check if name already exists in DirEntries
+                        if(filenameToString(myDir[i].filename)==tokens[1]){
+                            found=true;
+                            //Check if DirEntry is Directory
+                            if(myDir[i].attributes & ATTR_DIRECTORY){
+                                currentIndex = myDir[i].address;
+                                cout << "Changed current directory to '" << tokens[1] << "'." << endl;
+                            }else{
+                                cout << "'" << tokens[1] << "' is not a directory!" << endl;
+                            }
+                            break;
+                        }
+                    }
+                    if(!found){
+                        cout << "cd: Directory '" << tokens[1] << "' not found!" << endl;
+                    }
+                }
+            }else{
+                cout << "cd: Need to specify directory name!" << endl;
+            }
+        }else if(tokens[0]=="chmod"){
+            if(tokens.size()>1){
+                //First of all, check if the element exists.
+                DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                int found=-1;
+                for(int i=0; i<128; i++){
+                    if(filenameToString(myDir[i].filename)==tokens[1]){
+                        found=i;
+                        break;
+                    }
+                }
+                if(found>=0){
+                    if(tokens.size()==2){
+                        //Just print the file's attributes.
+                        cout << "'" << tokens[1] << "' is a " << ((myDir[found].attributes & ATTR_DIRECTORY)?"directory.":"file.") << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_READONLY)?"":"NOT ") << "Read-Only." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_HIDDEN)?"":"NOT ") << "Hidden." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_SYSTEMFILE)?"":"NOT ") << "a System File." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_VOLUMELABEL)?"":"NOT ") << "a Volume Label." << endl;
+                    }else if(tokens.size()==3){
+                        if(tokens[2].length()==4){
+                            string attr = tokens[2];
+                            char nattr=0;
+                            if(attr[0]=='V'){
+                                nattr+=ATTR_VOLUMELABEL;
+                            }else if(attr[0]=='-'){
+                                //Do nothing
+                            }else if(attr[0]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_VOLUMELABEL);
+                            }else{
+                                cout << "Unknown value for Volume Label. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_VOLUMELABEL);
+                            }
+                            if(attr[1]=='S'){
+                                nattr+=ATTR_SYSTEMFILE;
+                            }else if(attr[1]=='-'){
+                                //Do nothing
+                            }else if(attr[1]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_SYSTEMFILE);
+                            }else{
+                                cout << "Unknown value for System File. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_SYSTEMFILE);
+                            }
+                            if(attr[2]=='H'){
+                                nattr+=ATTR_HIDDEN;
+                            }else if(attr[2]=='-'){
+                                //Do nothing
+                            }else if(attr[2]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_HIDDEN);
+                            }else{
+                                cout << "Unknown value for Hidden. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_HIDDEN);
+                            }
+                            if(attr[3]=='R'){
+                                nattr+=ATTR_READONLY;
+                            }else if(attr[3]=='-'){
+                                //Do nothing
+                            }else if(attr[3]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_READONLY);
+                            }else{
+                                cout << "Unknown value for Read-Only. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_READONLY);
+                            }
+                            myDir[found].attributes = nattr;
+                            setDataCluster(currentIndex,packDirEntries(myDir));
+                        }else{
+                            cout << "Atrribute string is the wrong lenght! Must be 4 characters long." << endl;
+                        }
+                    }else{
+                        cout << "Too many arguments specified!" << endl;
+                    }
+                }else{
+                    cout << "chmod: Element '" << tokens[1] << "' not found in directory!" << endl;
+                }
+            }else{
+                cout << "chmod: Need to specify file/direcotry and, optionally, attributes!" << endl << endl;
+                cout << "Usage: chmod filename [attributes]" << endl;
+                cout << "If attributes are not specified, the file's attributes are displayed." << endl;
+                cout << "If they are specified, the file's attributes are changed accordingly." << endl;
+                cout << "Attributes should be specified as a 4-length string 'VSHR', where a letter would set the attribute," << endl;
+                cout << "a hyphen '-' would unset it, or a period '.' would not change it. (E.g.: -.HR)" << endl;
+                cout << "[V]olume Label, [S]ystem File, [H]idden, [R]ead-Only." << endl << endl;
             }
         }
         //status = executeCommand(tokens);
@@ -238,6 +396,15 @@ char* packDirEntries(DirEntry* entries){
         }
     }
     return data;
+}
+
+string filenameToString(char* filename){
+    char longer[12];
+    longer[11]='\0';
+    for(int i=0; i<11; i++){
+        longer[i]=filename[i];
+    }
+    return string(longer);
 }
 
 /**
