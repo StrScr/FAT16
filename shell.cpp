@@ -190,6 +190,89 @@ int main(int argc, char* argv[]){
             }else{
                 cout << "cd: Need to specify directory name!" << endl;
             }
+        }else if(tokens[0]=="chmod"){
+            if(tokens.size()>1){
+                //First of all, check if the element exists.
+                DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                int found=-1;
+                for(int i=0; i<128; i++){
+                    if(filenameToString(myDir[i].filename)==tokens[1]){
+                        found=i;
+                        break;
+                    }
+                }
+                if(found>=0){
+                    if(tokens.size()==2){
+                        //Just print the file's attributes.
+                        cout << "'" << tokens[1] << "' is a " << ((myDir[found].attributes & ATTR_DIRECTORY)?"directory.":"file.") << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_READONLY)?"":"NOT ") << "Read-Only." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_HIDDEN)?"":"NOT ") << "Hidden." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_SYSTEMFILE)?"":"NOT ") << "a System File." << endl;
+                        cout << "It's " << ((myDir[found].attributes & ATTR_VOLUMELABEL)?"":"NOT ") << "a Volume Label." << endl;
+                    }else if(tokens.size()==3){
+                        if(tokens[2].length()==4){
+                            string attr = tokens[2];
+                            char nattr=0;
+                            if(attr[0]=='V'){
+                                nattr+=ATTR_VOLUMELABEL;
+                            }else if(attr[0]=='-'){
+                                //Do nothing
+                            }else if(attr[0]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_VOLUMELABEL);
+                            }else{
+                                cout << "Unknown value for Volume Label. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_VOLUMELABEL);
+                            }
+                            if(attr[1]=='S'){
+                                nattr+=ATTR_SYSTEMFILE;
+                            }else if(attr[1]=='-'){
+                                //Do nothing
+                            }else if(attr[1]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_SYSTEMFILE);
+                            }else{
+                                cout << "Unknown value for System File. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_SYSTEMFILE);
+                            }
+                            if(attr[2]=='H'){
+                                nattr+=ATTR_HIDDEN;
+                            }else if(attr[2]=='-'){
+                                //Do nothing
+                            }else if(attr[2]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_HIDDEN);
+                            }else{
+                                cout << "Unknown value for Hidden. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_HIDDEN);
+                            }
+                            if(attr[3]=='R'){
+                                nattr+=ATTR_READONLY;
+                            }else if(attr[3]=='-'){
+                                //Do nothing
+                            }else if(attr[3]=='.'){
+                                nattr+=(myDir[found].attributes & ATTR_READONLY);
+                            }else{
+                                cout << "Unknown value for Read-Only. Keeping old value." << endl;
+                                nattr+=(myDir[found].attributes & ATTR_READONLY);
+                            }
+                            myDir[found].attributes = nattr;
+                            setDataCluster(currentIndex,packDirEntries(myDir));
+                        }else{
+                            cout << "Atrribute string is the wrong lenght! Must be 4 characters long." << endl;
+                        }
+                    }else{
+                        cout << "Too many arguments specified!" << endl;
+                    }
+                }else{
+                    cout << "chmod: Element '" << tokens[1] << "' not found in directory!" << endl;
+                }
+            }else{
+                cout << "chmod: Need to specify file/direcotry and, optionally, attributes!" << endl << endl;
+                cout << "Usage: chmod filename [attributes]" << endl;
+                cout << "If attributes are not specified, the file's attributes are displayed." << endl;
+                cout << "If they are specified, the file's attributes are changed accordingly." << endl;
+                cout << "Attributes should be specified as a 4-length string 'VSHR', where a letter would set the attribute," << endl;
+                cout << "a hyphen '-' would unset it, or a period '.' would not change it. (E.g.: -.HR)" << endl;
+                cout << "[V]olume Label, [S]ystem File, [H]idden, [R]ead-Only." << endl << endl;
+            }
         }
         //status = executeCommand(tokens);
 	};
