@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -121,7 +122,10 @@ DirEntry makeDirEntry(char* fn, char attr, usint addr, unsigned int size){
     DirEntry entry;
     entry.filename=fn;
     entry.attributes=attr;
-    entry.created_time=std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    entry.created_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    //entry.created_time=std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
     entry.address=addr;
     entry.filesize=size;
     return entry;
