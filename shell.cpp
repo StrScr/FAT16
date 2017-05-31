@@ -288,23 +288,55 @@ int main(int argc, char* argv[]){
         cout << "[V]olume Label, [S]ystem File, [H]idden, [R]ead-Only." << endl << endl;
       }
     }else if (tokens[0]=="rmdir") {
-      if(tokens.size()>1){
-        if(tokens[1].length()>11 || tokens[1].length()<1){
-            cout << "rmdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
-        }else{
-            if(tokens[1]=="." || tokens[1]==".."){
-                cout << "rmdir: Can't delete special directory!" << endl;
+        if(tokens.size()>1){
+            if(tokens[1].length()>11 || tokens[1].length()<1){
+                cout << "rmdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
+            }else{
+                if(tokens[1]=="." || tokens[1]==".."){
+                    cout << "rmdir: Can't delete special directory!" << endl;
+                }else{
+                    int found=-1;
+                    bool isdir=true;
+                    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+                    for(int i=0; i<128; i++){//Check if name exists in DirEntries
+                        if(filenameToString(myDir[i].filename)==tokens[1]){
+                            if(myDir[i].attributes & ATTR_DIRECTORY){
+                                found=i;
+                            }else{
+                                cout << "rmdir: '" << tokens[1] << "' isn't a directory!" << endl;
+                                isdir=false;
+                            }
+                            break;
+                        }
+                    }
+                    if(found>=0){
+                        deleteEntry(myDir[found]);
+                        myDir[found].filename[0]='\0';
+                        setDataCluster(currentIndex, packDirEntries(myDir));
+                        cout << "Directory removed." << endl;
+                    }else if(isdir){
+                        cout << "rmdir: Element doesn't exist in current directory." << endl;
+                    }
+                }
+            }
+      }else{
+            cout << "rmdir: Need to specify directory name!" << endl;
+      }
+    }else if(tokens[0]=="rm"){
+        if(tokens.size()>1){
+            if(tokens[1].length()>11 || tokens[1].length()<1){
+                cout << "rm: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
             }else{
                 int found=-1;
-                bool isdir=true;
+                bool isfile=true;
                 DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
                 for(int i=0; i<128; i++){//Check if name exists in DirEntries
                     if(filenameToString(myDir[i].filename)==tokens[1]){
-                        if(myDir[i].attributes & ATTR_DIRECTORY){
+                        if(myDir[i].attributes & ATTR_FILE){
                             found=i;
                         }else{
-                            cout << "rmdir: '" << tokens[1] << "' isn't a directory!" << endl;
-                            isdir=false;
+                            cout << "rm: '" << tokens[1] << "' isn't a file!" << endl;
+                            isfile=false;
                         }
                         break;
                     }
@@ -313,15 +345,14 @@ int main(int argc, char* argv[]){
                     deleteEntry(myDir[found]);
                     myDir[found].filename[0]='\0';
                     setDataCluster(currentIndex, packDirEntries(myDir));
-                    cout << "Directory removed." << endl;
-                }else if(isdir){
-                    cout << "rmdir: Element doesn't exist in current directory." << endl;
+                    cout << "File removed." << endl;
+                }else if(isfile){
+                    cout << "rm: Element doesn't exist in current directory." << endl;
                 }
             }
+        }else{
+            cout << "rm: Need to specify filename!" << endl;
         }
-      }else{
-        cout << "rmdir: Need to specify directory name!" << endl;
-      }
     }else if (tokens[0]=="pwd") {
       cout << currentDir <<endl;
     }
