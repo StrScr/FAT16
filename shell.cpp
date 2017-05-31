@@ -127,7 +127,13 @@ bool hasNextCluster(int index){
 
 DirEntry makeDirEntry(char* fn, char attr, usint addr, unsigned int size){
     DirEntry entry;
-    entry.filename=fn;
+    //entry.filename=fn;
+    for(int i=0; i<11; i++){
+        entry.filename[i]=fn[i];
+        if(fn[i]=='\0'){
+            break;
+        }
+    }
     entry.attributes=attr;
     struct timeval tp;
     gettimeofday(&tp, NULL);
@@ -155,7 +161,7 @@ char* getDirRawData(int index, char* data){
 DirEntry* parseDirEntries(char* data){
     DirEntry* entries = new DirEntry[512];
     for(int i=0; i<512; i++){
-        entries[i] = reinterpret_cast<DirEntry>(getDirRawData(i,data));
+        entries[i] = *(reinterpret_cast<DirEntry*>(getDirRawData(i,data)));
     }
     return entries;
 }
