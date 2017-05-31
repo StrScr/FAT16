@@ -33,8 +33,12 @@ string filenameToString(char*);
 void deleteEntry(DirEntry);
 void clearFATindex(usint);
 vector<string> getTokens(string, char);
+
+bool isElementRepeated(string filename);
+
 //use for cat
 void createFile(string);
+void readFile(string);
 
 const int FAT_SIZE = 65536; // 65536 entries. 2B per entry.
 const int FAT_OFFSET = 512; // 1 sector
@@ -89,6 +93,7 @@ int main(int argc, char* argv[]){
   //Welcome to the shell
   int status = 0;
   while(!status) {
+    cout << flush;
     cout << OS_name << "> ";
     string line;
     getline(cin,line);
@@ -127,10 +132,11 @@ int main(int argc, char* argv[]){
       }
     }else if(tokens[0]=="cat"){
       if(tokens.size() == 2){
-
+        readFile(tokens[1]);
       }
       if(tokens.size() == 3 && tokens[1] == ">"){
-        createFile(tokens[2]);
+        if(!isElementRepeated(tokens[2]))
+          createFile(tokens[2]);
       }
     }else if(tokens[0]=="mkdir"){
       if(tokens.size()>1){
@@ -531,9 +537,35 @@ void createFile(string filename){
       break;
     }
   }
+  
   setDataCluster(currentIndex,packDirEntries(myDir));
   //remember to setFATindex(currentIndex,nextcluster|FAT_EOF)
   /*Maybe flush to disk?*/
+}
+
+void readFile(string filename){
+  DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+  for(int i=0; i<128; i++){
+    if(myDir[i].attributes & ATTR_FILE && filenameToString(myDir[i].filename) == filename){
+      char* buffer = getDataCluster(myDir[i].address);
+      int j = 0;
+      while(buffer[j] != 4)
+        cout << buffer[j++];
+      break;
+    }
+  }  
+}
+
+bool isElementRepeated(string filename){
+  DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+  for(int i=0; i<128; i++){//Check if name already exists in DirEntries
+    if(filenameToString(myDir[i].filename)==filename){
+      cout << "Element with same name exists in directory!" << endl;
+      return true;
+      break;
+    }
+  }
+  return false;
 }
 
 void deleteEntry(DirEntry entry){
