@@ -114,6 +114,13 @@ int main(int argc, char* argv[]){
                     cout << myDir[i].filesize << "B" << endl;
                 }
             }
+        }else if(tokens[0]=="cat"){
+            if(tokens.size() == 2){
+
+            }
+            if(tokens.size() == 3 && tokens[1] == ">"){
+                createFile(tokens[2]);
+            }
         }
         //status = executeCommand(tokens);
 	};
@@ -225,4 +232,22 @@ vector<string> getTokens(string toTokenize, char delimiter){
 	}
 	v.push_back(string(stringIT,toTokenize.end()));
 	return v;
+}
+
+/**
+    cat > filemae
+*/
+void createFile(string filename){
+    /*Do cat>file logic here*/
+    /*string fileData = cin.get()*/
+    DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
+    for(int i=0; i<128; i++){
+        if(myDir[i].filename[0]!='\0'){
+           myDir[i] = makeDirEntry(filename, ATTR_FILE, getFATindex(currentIndex),8);
+           break;
+        }
+    }
+    setDataCluster(currentIndex,packDirEntries(myDir));
+    //remember to setFATindex(currentIndex,nextcluster|FAT_EOF)
+    /*Maybe flush to disk?*/
 }
