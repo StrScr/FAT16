@@ -18,7 +18,7 @@ struct DirEntry{
   unsigned int filesize;
   char reserved[6];
 };
-usint getNextAvailableDATAIndex();
+
 usint getNextAvailableIndex();
 usint getFATindex(int);
 void setFATindex(int, usint);
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]){
     string line;
     getline(cin,line);
     vector<string> tokens = getTokens(line, ' ');
-    if(tokens.size() == 0 || tokens[0] == "exit"){
+    if(tokens[0] == "exit"){
       status = 1;
     }else if(tokens[0]=="ls"){
       DirEntry* myDir = parseDirEntries(getDataCluster(currentIndex));
@@ -203,7 +203,7 @@ int main(int argc, char* argv[]){
                   }
                 cout << "Changed current directory to '" << tokens[1] << "'." << endl;
               }else{
-                cout << "'" << tokens[1] << "' is not a directory!" << endl;
+                cout << "cd: '" << tokens[1] << "' is not a directory!" << endl;
               }
               break;
             }
@@ -300,7 +300,7 @@ int main(int argc, char* argv[]){
         cout << "a hyphen '-' would unset it, or a period '.' would not change it. (E.g.: -.HR)" << endl;
         cout << "[V]olume Label, [S]ystem File, [H]idden, [R]ead-Only." << endl << endl;
       }
-    }else if (tokens[0]=="rmdir") {
+    }else if(tokens[0]=="rmdir") {
         if(tokens.size()>1){
             if(tokens[1].length()>11 || tokens[1].length()<1){
                 cout << "rmdir: Wrong length for specified name! Must be 1 to 11 characters long." << endl;
@@ -366,8 +366,10 @@ int main(int argc, char* argv[]){
         }else{
             cout << "rm: Need to specify filename!" << endl;
         }
-    }else if (tokens[0]=="pwd") {
+    }else if(tokens[0]=="pwd") {
       cout << currentDir <<endl;
+    }else{
+      cout << "Unknown command '" << tokens[0] << "'!" << endl;
     }
     //status = executeCommand(tokens);
   };
